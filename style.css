@@ -185,6 +185,13 @@
             color: #666;
         }
 
+        .usd-inr-rate {
+            margin-top: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #1e3c72;
+        }
+
         .loading {
             text-align: center;
             padding: 20px;

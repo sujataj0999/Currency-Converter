@@ -72,6 +72,7 @@ const convertBtn = document.getElementById('convert-btn');
 const swapBtn = document.getElementById('swap-btn');
 const exchangeRateElement = document.getElementById('exchange-rate');
 const ratesStatusElement = document.getElementById('rates-status');
+const usdInrRateElement = document.getElementById('usd-inr-rate');
 
 function formatCurrency(amount, currency) {
     return new Intl.NumberFormat('en-US', {
@@ -142,6 +143,35 @@ function updateRatesStatus() {
     ratesStatusElement.textContent = lastUpdatedLabel;
 }
 
+function countryCodeToEmoji(code) {
+    if (!code || code.length !== 2) return '';
+    return code
+        .toUpperCase()
+        .split('')
+        .map((char) => String.fromCodePoint(127397 + char.charCodeAt()))
+        .join('');
+}
+
+function decorateCurrencyOptionsWithFlags(selectElement) {
+    for (const option of selectElement.options) {
+        const countryCode = option.dataset.flag;
+        const flagEmoji = countryCodeToEmoji(countryCode);
+        if (!flagEmoji) continue;
+
+        const rawLabel = option.textContent.replace(/^[^A-Z]*\s*/, '');
+        option.textContent = `${flagEmoji} ${rawLabel}`;
+    }
+}
+
+function updateUsdInrReference() {
+    const usdToInr = getRate('USD', 'INR');
+    if (typeof usdToInr !== 'number') {
+        usdInrRateElement.textContent = 'USD/INR unavailable';
+        return;
+    }
+    usdInrRateElement.textContent = `1 USD = ${usdToInr.toFixed(4)} INR`;
+}
+
 function convertCurrency() {
     const amount = parseFloat(amountInput.value);
     const from = fromCurrency.value;
@@ -204,6 +234,7 @@ async function fetchLiveRates() {
     }
 
     updateRatesStatus();
+    updateUsdInrReference();
     convertCurrency();
 }
 
@@ -213,6 +244,12 @@ amountInput.addEventListener('input', convertCurrency);
 fromCurrency.addEventListener('change', convertCurrency);
 toCurrency.addEventListener('change', convertCurrency);
 
+decorateCurrencyOptionsWithFlags(fromCurrency);
+decorateCurrencyOptionsWithFlags(toCurrency);
+updateRatesStatus();
+updateUsdInrReference();
+convertCurrency();
+fetchLiveRates();
 updateRatesStatus();
 convertCurrency();
 fetchLiveRates();
