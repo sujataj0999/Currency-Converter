@@ -31,12 +31,21 @@ const usdBaseRates = {
 };
 
 let usdBaseRates = { ...fallbackUsdBaseRates };
+let lastUpdatedLabel = 'Rates ready';
 let lastUpdatedLabel = 'Using fallback sample rates';
 
 const currencyIcons = {
     USD: 'us', EUR: 'eu', GBP: 'gb', JPY: 'jp', INR: 'in', AUD: 'au', CAD: 'ca',
     CHF: 'ch', CNY: 'cn', NZD: 'nz', SGD: 'sg', KRW: 'kr', BRL: 'br', RUB: 'ru',
     MXN: 'mx', TRY: 'tr', ZAR: 'za', SEK: 'se', NOK: 'no', AED: 'ae'
+};
+
+const currencyNames = {
+    USD: 'US Dollar', EUR: 'Euro', GBP: 'British Pound', JPY: 'Japanese Yen', INR: 'Indian Rupee',
+    AUD: 'Australian Dollar', CAD: 'Canadian Dollar', CHF: 'Swiss Franc', CNY: 'Chinese Yuan',
+    NZD: 'New Zealand Dollar', SGD: 'Singapore Dollar', KRW: 'South Korean Won', BRL: 'Brazilian Real',
+    RUB: 'Russian Ruble', MXN: 'Mexican Peso', TRY: 'Turkish Lira', ZAR: 'South African Rand',
+    SEK: 'Swedish Krona', NOK: 'Norwegian Krone', AED: 'UAE Dirham'
 // Currency symbol icons shown in select background (flags are not always valid for currencies like EUR)
 const currencyIcons = {
     USD: 'us',
@@ -79,6 +88,7 @@ function formatCurrency(amount, currency) {
         style: 'currency',
         currency,
         minimumFractionDigits: 2,
+        maximumFractionDigits: 4
         maximumFractionDigits: 2
     }).format(amount);
 }
@@ -158,6 +168,9 @@ function decorateCurrencyOptionsWithFlags(selectElement) {
         const flagEmoji = countryCodeToEmoji(countryCode);
         if (!flagEmoji) continue;
 
+        const code = option.value;
+        const name = currencyNames[code] || option.textContent;
+        option.textContent = `${flagEmoji} ${code} - ${name}`;
         const rawLabel = option.textContent.replace(/^[^A-Z]*\s*/, '');
         option.textContent = `${flagEmoji} ${rawLabel}`;
     }
@@ -228,6 +241,9 @@ async function fetchLiveRates() {
         };
 
         const asOf = data.date ? formatApiDate(data.date) : 'latest available date';
+        lastUpdatedLabel = `As of ${asOf}`;
+    } catch (_error) {
+        lastUpdatedLabel = 'Using available rates';
         lastUpdatedLabel = `Live market rates loaded (${BASE_CURRENCY} base) · As of ${asOf}`;
     } catch (_error) {
         lastUpdatedLabel = 'Live rates unavailable; using fallback sample rates';
