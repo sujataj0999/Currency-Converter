@@ -4,11 +4,15 @@ const LIVE_RATES_API = 'https://api.frankfurter.app/latest?from=USD';
 
 // Fallback rates (used only if live fetch fails)
 const fallbackUsdBaseRates = {
+// Static exchange rates expressed as value of 1 USD in each currency.
+// Conversions are derived from this single base to keep cross-rates consistent.
+const usdBaseRates = {
     USD: 1,
     EUR: 0.85,
     GBP: 0.73,
     JPY: 110.53,
     INR: 95.97,
+    INR: 82.68,
     AUD: 1.34,
     CAD: 1.25,
     CHF: 0.92,
@@ -28,6 +32,7 @@ const fallbackUsdBaseRates = {
 
 let usdBaseRates = { ...fallbackUsdBaseRates };
 let lastUpdatedLabel = 'Rates ready';
+let lastUpdatedLabel = 'Using fallback sample rates';
 
 const currencyIcons = {
     USD: 'us', EUR: 'eu', GBP: 'gb', JPY: 'jp', INR: 'in', AUD: 'au', CAD: 'ca',
@@ -41,6 +46,28 @@ const currencyNames = {
     NZD: 'New Zealand Dollar', SGD: 'Singapore Dollar', KRW: 'South Korean Won', BRL: 'Brazilian Real',
     RUB: 'Russian Ruble', MXN: 'Mexican Peso', TRY: 'Turkish Lira', ZAR: 'South African Rand',
     SEK: 'Swedish Krona', NOK: 'Norwegian Krone', AED: 'UAE Dirham'
+// Currency symbol icons shown in select background (flags are not always valid for currencies like EUR)
+const currencyIcons = {
+    USD: 'us',
+    EUR: 'eu',
+    GBP: 'gb',
+    JPY: 'jp',
+    INR: 'in',
+    AUD: 'au',
+    CAD: 'ca',
+    CHF: 'ch',
+    CNY: 'cn',
+    NZD: 'nz',
+    SGD: 'sg',
+    KRW: 'kr',
+    BRL: 'br',
+    RUB: 'ru',
+    MXN: 'mx',
+    TRY: 'tr',
+    ZAR: 'za',
+    SEK: 'se',
+    NOK: 'no',
+    AED: 'ae'
 };
 
 const FALLBACK_SELECT_BG =
@@ -62,6 +89,7 @@ function formatCurrency(amount, currency) {
         currency,
         minimumFractionDigits: 2,
         maximumFractionDigits: 4
+        maximumFractionDigits: 2
     }).format(amount);
 }
 
@@ -69,11 +97,17 @@ function getRate(from, to) {
     const fromRate = usdBaseRates[from];
     const toRate = usdBaseRates[to];
     if (typeof fromRate !== 'number' || typeof toRate !== 'number' || fromRate <= 0) return null;
+
+    if (typeof fromRate !== 'number' || typeof toRate !== 'number' || fromRate <= 0) {
+        return null;
+    }
+
     return toRate / fromRate;
 }
 
 function setSelectCurrencyIcon(selectElement, currencyCode) {
     const iconCode = currencyIcons[currencyCode];
+
     if (!iconCode) {
         selectElement.style.backgroundImage = FALLBACK_SELECT_BG;
         return;
@@ -82,6 +116,18 @@ function setSelectCurrencyIcon(selectElement, currencyCode) {
     const testImage = new Image();
     testImage.onload = () => { selectElement.style.backgroundImage = `url('${url}')`; };
     testImage.onerror = () => { selectElement.style.backgroundImage = FALLBACK_SELECT_BG; };
+
+    const url = `https://flagcdn.com/w40/${iconCode}.png`;
+    const testImage = new Image();
+
+    testImage.onload = () => {
+        selectElement.style.backgroundImage = `url('${url}')`;
+    };
+
+    testImage.onerror = () => {
+        selectElement.style.backgroundImage = FALLBACK_SELECT_BG;
+    };
+
     testImage.src = url;
 }
 
@@ -95,6 +141,7 @@ function updateExchangeRateText(rate, from, to) {
         exchangeRateElement.textContent = 'Exchange rate unavailable for selected currencies';
         return;
     }
+
     exchangeRateElement.textContent = `1 ${from} = ${rate.toFixed(4)} ${to}`;
 }
 
@@ -124,6 +171,8 @@ function decorateCurrencyOptionsWithFlags(selectElement) {
         const code = option.value;
         const name = currencyNames[code] || option.textContent;
         option.textContent = `${flagEmoji} ${code} - ${name}`;
+        const rawLabel = option.textContent.replace(/^[^A-Z]*\s*/, '');
+        option.textContent = `${flagEmoji} ${rawLabel}`;
     }
 }
 
@@ -160,6 +209,8 @@ function convertCurrency() {
     }
 
     resultElement.textContent = formatCurrency(amount * rate, to);
+    const result = amount * rate;
+    resultElement.textContent = formatCurrency(result, to);
     updateExchangeRateText(rate, from, to);
 }
 
@@ -193,6 +244,9 @@ async function fetchLiveRates() {
         lastUpdatedLabel = `As of ${asOf}`;
     } catch (_error) {
         lastUpdatedLabel = 'Using available rates';
+        lastUpdatedLabel = `Live market rates loaded (${BASE_CURRENCY} base) · As of ${asOf}`;
+    } catch (_error) {
+        lastUpdatedLabel = 'Live rates unavailable; using fallback sample rates';
     }
 
     updateRatesStatus();
@@ -212,3 +266,7 @@ updateRatesStatus();
 updateUsdInrReference();
 convertCurrency();
 fetchLiveRates();
+updateRatesStatus();
+convertCurrency();
+fetchLiveRates();
+convertCurrency();
