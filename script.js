@@ -1,3 +1,9 @@
+// Live exchange-rate configuration
+const BASE_CURRENCY = 'USD';
+const LIVE_RATES_API = 'https://api.frankfurter.app/latest?from=USD';
+
+// Fallback rates (used only if live fetch fails)
+const fallbackUsdBaseRates = {
 // Static exchange rates expressed as value of 1 USD in each currency.
 // Conversions are derived from this single base to keep cross-rates consistent.
 const usdBaseRates = {
@@ -5,6 +11,7 @@ const usdBaseRates = {
     EUR: 0.85,
     GBP: 0.73,
     JPY: 110.53,
+    INR: 95.97,
     INR: 82.68,
     AUD: 1.34,
     CAD: 1.25,
@@ -23,6 +30,13 @@ const usdBaseRates = {
     AED: 3.67
 };
 
+let usdBaseRates = { ...fallbackUsdBaseRates };
+let lastUpdatedLabel = 'Using fallback sample rates';
+
+const currencyIcons = {
+    USD: 'us', EUR: 'eu', GBP: 'gb', JPY: 'jp', INR: 'in', AUD: 'au', CAD: 'ca',
+    CHF: 'ch', CNY: 'cn', NZD: 'nz', SGD: 'sg', KRW: 'kr', BRL: 'br', RUB: 'ru',
+    MXN: 'mx', TRY: 'tr', ZAR: 'za', SEK: 'se', NOK: 'no', AED: 'ae'
 // Currency symbol icons shown in select background (flags are not always valid for currencies like EUR)
 const currencyIcons = {
     USD: 'us',
@@ -57,6 +71,7 @@ const resultElement = document.getElementById('result');
 const convertBtn = document.getElementById('convert-btn');
 const swapBtn = document.getElementById('swap-btn');
 const exchangeRateElement = document.getElementById('exchange-rate');
+const ratesStatusElement = document.getElementById('rates-status');
 
 function formatCurrency(amount, currency) {
     return new Intl.NumberFormat('en-US', {
@@ -70,6 +85,7 @@ function formatCurrency(amount, currency) {
 function getRate(from, to) {
     const fromRate = usdBaseRates[from];
     const toRate = usdBaseRates[to];
+    if (typeof fromRate !== 'number' || typeof toRate !== 'number' || fromRate <= 0) return null;
 
     if (typeof fromRate !== 'number' || typeof toRate !== 'number' || fromRate <= 0) {
         return null;
@@ -85,6 +101,10 @@ function setSelectCurrencyIcon(selectElement, currencyCode) {
         selectElement.style.backgroundImage = FALLBACK_SELECT_BG;
         return;
     }
+    const url = `https://flagcdn.com/w40/${iconCode}.png`;
+    const testImage = new Image();
+    testImage.onload = () => { selectElement.style.backgroundImage = `url('${url}')`; };
+    testImage.onerror = () => { selectElement.style.backgroundImage = FALLBACK_SELECT_BG; };
 
     const url = `https://flagcdn.com/w40/${iconCode}.png`;
     const testImage = new Image();
@@ -118,6 +138,10 @@ function setValidationState(message = '') {
     amountInput.setCustomValidity(message);
 }
 
+function updateRatesStatus() {
+    ratesStatusElement.textContent = lastUpdatedLabel;
+}
+
 function convertCurrency() {
     const amount = parseFloat(amountInput.value);
     const from = fromCurrency.value;
@@ -141,6 +165,7 @@ function convertCurrency() {
         return;
     }
 
+    resultElement.textContent = formatCurrency(amount * rate, to);
     const result = amount * rate;
     resultElement.textContent = formatCurrency(result, to);
     updateExchangeRateText(rate, from, to);
@@ -153,10 +178,42 @@ function swapCurrencies() {
     convertCurrency();
 }
 
+function formatApiDate(yyyyMmDd) {
+    const date = new Date(`${yyyyMmDd}T00:00:00Z`);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+async function fetchLiveRates() {
+    try {
+        const response = await fetch(LIVE_RATES_API, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+        if (!data?.rates || typeof data.rates.INR !== 'number') throw new Error('Malformed rates payload');
+
+        usdBaseRates = {
+            ...usdBaseRates,
+            ...data.rates,
+            [BASE_CURRENCY]: 1
+        };
+
+        const asOf = data.date ? formatApiDate(data.date) : 'latest available date';
+        lastUpdatedLabel = `Live market rates loaded (${BASE_CURRENCY} base) · As of ${asOf}`;
+    } catch (_error) {
+        lastUpdatedLabel = 'Live rates unavailable; using fallback sample rates';
+    }
+
+    updateRatesStatus();
+    convertCurrency();
+}
+
 convertBtn.addEventListener('click', convertCurrency);
 swapBtn.addEventListener('click', swapCurrencies);
 amountInput.addEventListener('input', convertCurrency);
 fromCurrency.addEventListener('change', convertCurrency);
 toCurrency.addEventListener('change', convertCurrency);
 
+updateRatesStatus();
+convertCurrency();
+fetchLiveRates();
 convertCurrency();
